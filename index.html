@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pet Status</title>
+    <title>FrenPet Status</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,87 +11,121 @@
             padding: 0;
             background-color: #f0f0f0;
         }
-
         #pet-info {
             margin-top: 20px;
         }
     </style>
 </head>
+
 <body>
-    <div id="pet-info"></div>
+    <div>
+        <label for="address-input">Enter Ethereum Addresses (separated by commas):</label><br>
+        <input type="text" id="address-input" placeholder="0xmyFirstAddress, 0xmySecondAddress, 0xetc..." style="width:69%;"><br>
+        <button onclick="fetchPetInfo(true)">Submit</button>
+    </div>
+    <div id="pet-info"></div><br>
+    <p style="color:cadetblue;font-size:12px;">**If your address is accepted, but your pets' info isn't showing, try copy and pasting the address directly from your Ethereum wallet.</p>
+    <p style="color:cadetblue;font-size:12px;">The frenpet api call is case sensitive. Ethereum addresses that include uppercase letters are checksummed; their checksum validation will fail if casing doesn't match.</p>
+
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const ownerAddresses = ["0x007532B8f18538162D6e5f7ACf4573dce20A1d63", "0x98c0FE160B049D3436D2C3c26bF454FcfAD2A8c1"]; // <-- PUT YOUR FP ADDRESS HERE!!!
-        const apiUrl = 'https://api.frenpet.xyz/';
-        const headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/plain, */*'
-        };
+        const savedAddresses = localStorage.getItem('savedAddresses');
+        if (savedAddresses) {
+            document.getElementById('address-input').value = savedAddresses;
+            fetchPetInfo(false);
+            }
+        });
 
-        ownerAddresses.forEach(ownerAddress => {
-            const payload = {
-                query: `
-                    query GetPetsByOwner($owner: String!) {
-                        pets(where: { owner: $owner },orderBy: "scoreInt", orderDirection: "desc") {
-                            id
-                            name
-                            owner
-                            score
-                            status
-                            lastAttackUsed
-                            lastAttacked
-                            level
-                            timeUntilStarving
-                            rewards
-                            itemsOwned {
-                                id
-                                owned
-                                itemEquipExpires
-                            }
-                        }
-                    }
-                `,
-                variables: {
-                    owner: `${ownerAddress}`
-                }
+        function isValidAddress(address) {
+            return address.startsWith('0x') && address.length === 42;
+        }
+
+        function fetchPetInfo(saveAddresses) {
+            console.log("Fetching pet info...");
+            let input = document.getElementById('address-input').value;
+            console.log("Input addresses:", input);
+            let ownerAddresses = input.split(',').map(address => address.trim());
+            const apiUrl = 'https://api.frenpet.xyz/';
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/plain, */*'
             };
 
-            fetch(apiUrl, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(payload)
-            })
-            .then(response => response.json())
-            .then(data => {
-                const pets = data.data.pets;
-                const currentUnixTimestamp = Math.floor(Date.now() / 1000);
-                let petInfoHTML = `<h3>Address: ${ownerAddress}</h3>`;
+            document.getElementById('pet-info').innerHTML = '';
 
-                pets.forEach(pet => {
-                    const ttd = parseInt(pet.timeUntilStarving);
-                    const petName = pet.name;
-                    const petId = pet.id;
-                    const timeDifferenceSeconds = ttd - currentUnixTimestamp;
+            ownerAddresses.forEach(ownerAddress => {
+                if (!isValidAddress(ownerAddress)) {
+                    alert(`Invalid address: ${ownerAddress}`);
+                    return;
+                }
 
-                    if (timeDifferenceSeconds > 0) {
-                        const hours = Math.floor(timeDifferenceSeconds / 3600);
-                        const minutes = Math.floor((timeDifferenceSeconds % 3600) / 60);
-                        petInfoHTML += `<p>${petName || `Pet ID #${petId}`} time until starving: ${hours} hours and ${minutes} minutes</p>`;
-                    } else {
-                        petInfoHTML += `<p>${petName || `Pet ID #${petId}`} is already starving.</p>`;
+                const payload = {
+                    query: `
+                        query GetPetsByOwner($owner: String!) {
+                            pets(where: { owner: $owner },orderBy: "scoreInt", orderDirection: "desc") {
+                                id
+                                name
+                                owner
+                                score
+                                status
+                                lastAttackUsed
+                                lastAttacked
+                                level
+                                timeUntilStarving
+                                rewards
+                                itemsOwned {
+                                    id
+                                    owned
+                                    itemEquipExpires
+                                }
+                            }
+                        }
+                    `,
+                    variables: {
+                        owner: `${ownerAddress}`
                     }
-                });
+                };
+                fetch(apiUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(payload)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Response data for address:', ownerAddress, data);
+                    const pets = data.data.pets;
+                    const currentUnixTimestamp = Math.floor(Date.now() / 1000);
+                    let petInfoHTML = `<h3>Address: ${ownerAddress}</h3>`;
 
-                const div = document.createElement('div');
-                div.innerHTML = petInfoHTML;
-                document.getElementById('pet-info').appendChild(div);
-            })
+                    pets.forEach(pet => {
+                        const ttd = parseInt(pet.timeUntilStarving);
+                        const petName = pet.name;
+                        const petId = pet.id;
+                        const timeDifferenceSeconds = ttd - currentUnixTimestamp;
+
+                        if (timeDifferenceSeconds > 0) {
+                            const hours = Math.floor(timeDifferenceSeconds / 3600);
+                            const minutes = Math.floor((timeDifferenceSeconds % 3600) / 60);
+                            petInfoHTML += `<p>${petName || `Pet ID #${petId}`} time until starving: ${hours} hours and ${minutes} minutes</p>`;
+                        } else {
+                            petInfoHTML += `<p>${petName || `Pet ID #${petId}`} is already starving.</p>`;
+                        }
+                    });
+
+                    const div = document.createElement('div');
+                    div.innerHTML = petInfoHTML;
+                    document.getElementById('pet-info').appendChild(div);
+                })
             .catch(error => {
                 console.error('Error fetching pet data for address ' + ownerAddress + ':', error);
             });
-        });
-    });
-    </script>
+            });
 
+            if (saveAddresses && ownerAddresses.length > 0) {
+                ownerAddresses = ownerAddresses.filter(isValidAddress);
+                localStorage.setItem('savedAddresses', ownerAddresses.join(','));
+            }
+        }
+    </script>
 </body>
 </html>
