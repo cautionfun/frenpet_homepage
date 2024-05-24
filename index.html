@@ -96,17 +96,27 @@
                     const pets = data.data.pets;
                     const currentUnixTimestamp = Math.floor(Date.now() / 1000);
                     let petInfoHTML = `<h3>Address: ${ownerAddress}</h3>`;
+                    let totalRewards = 0;
 
                     pets.forEach(pet => {
                         const ttd = parseInt(pet.timeUntilStarving);
+                        const score = parseFloat(pet.score)/1000000000000;
+                        const rewards = parseFloat(pet.rewards)/1000000000000000000;
                         const petName = pet.name;
                         const petId = pet.id;
                         const timeDifferenceSeconds = ttd - currentUnixTimestamp;
+                        totalRewards += rewards;
 
                         if (timeDifferenceSeconds > 0) {
                             const hours = Math.floor(timeDifferenceSeconds / 3600);
                             const minutes = Math.floor((timeDifferenceSeconds % 3600) / 60);
-                            petInfoHTML += `<p>${petName || `Pet ID #${petId}`} time until starving: ${hours} hours and ${minutes} minutes</p>`;
+                            if (timeDifferenceSeconds < 86400) {
+                                petInfoHTML += `<p style="color: red">${petName || `Pet ID #${petId}`} time until starving: ${hours} hours and ${minutes} minutes</p>`;
+                            } else {
+                                petInfoHTML += `<p style="color: green">${petName || `Pet ID #${petId}`} time until starving: ${hours} hours and ${minutes} minutes</p>`;
+                            }
+                            petInfoHTML += `<p style="font-size: smaller;">Score: ${score.toFixed(0)} points</p>`;
+                            petInfoHTML += `<p style="font-size: smaller;">Rewards: ${rewards.toFixed(8)} ETH</p>`;
                         } else {
                             petInfoHTML += `<p>${petName || `Pet ID #${petId}`} is already starving.</p>`;
                         }
@@ -115,6 +125,10 @@
                     const div = document.createElement('div');
                     div.innerHTML = petInfoHTML;
                     document.getElementById('pet-info').appendChild(div);
+
+                    const totalRewardsDiv = document.createElement('div');
+                    totalRewardsDiv.innerHTML = `<h4>Total Rewards: ${totalRewards.toFixed(8)} ETH</h4>`;
+                    document.getElementById('pet-info').appendChild(totalRewardsDiv);
                 })
             .catch(error => {
                 console.error('Error fetching pet data for address ' + ownerAddress + ':', error);
