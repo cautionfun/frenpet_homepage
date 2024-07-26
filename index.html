@@ -16,7 +16,6 @@
         }
     </style>
 </head>
-
 <body>
     <div>
         <label for="address-input">Enter Ethereum Addresses (separated by commas):</label><br>
@@ -25,7 +24,7 @@
     </div>
     <div id="pet-info"></div><br>
     <p style="color:cadetblue;font-size:12px;">**If your address is accepted, but your pets' info isn't showing, try copy and pasting the address directly from your Ethereum wallet.</p>
-    <p style="color:cadetblue;font-size:12px;">The frenpet api call is case sensitive. Ethereum addresses that include uppercase letters are checksummed; their checksum validation will fail if casing doesn't match.</p>
+    <p style="color:cadetblue;font-size:12px;">The frenpet API call is case sensitive. Ethereum addresses that include uppercase letters are checksummed; their checksum validation will fail if casing doesn't match.</p>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -33,36 +32,37 @@
         if (savedAddresses) {
             document.getElementById('address-input').value = savedAddresses;
             fetchPetInfo(false);
-            }
-        });
-
-        function isValidAddress(address) {
-            return address.startsWith('0x') && address.length === 42;
         }
+    });
 
-        function fetchPetInfo(saveAddresses) {
-            console.log("Fetching pet info...");
-            let input = document.getElementById('address-input').value;
-            console.log("Input addresses:", input);
-            let ownerAddresses = input.split(',').map(address => address.trim());
-            const apiUrl = 'https://api.frenpet.xyz/';
-            const headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json, text/plain, */*'
-            };
+    function isValidAddress(address) {
+        return address.startsWith('0x') && address.length === 42;
+    }
 
-            document.getElementById('pet-info').innerHTML = '';
+    function fetchPetInfo(saveAddresses) {
+        console.log("Fetching pet info...");
+        let input = document.getElementById('address-input').value;
+        console.log("Input addresses:", input);
+        let ownerAddresses = input.split(',').map(address => address.trim());
+        const apiUrl = 'https://api.frenpet.xyz/';
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/plain, */*'
+        };
 
-            ownerAddresses.forEach(ownerAddress => {
-                if (!isValidAddress(ownerAddress)) {
-                    alert(`Invalid address: ${ownerAddress}`);
-                    return;
-                }
+        document.getElementById('pet-info').innerHTML = '';
 
-                const payload = {
-                    query: `
-                        query GetPetsByOwner($owner: String!) {
-                            pets(where: { owner: $owner },orderBy: "scoreInt", orderDirection: "desc") {
+        ownerAddresses.forEach(ownerAddress => {
+            if (!isValidAddress(ownerAddress)) {
+                alert(`Invalid address: ${ownerAddress}`);
+                return;
+            }
+
+            const payload = {
+                query: `
+                    query GetPetsByOwner($owner: String!) {
+                        pets(where: { owner: $owner }, orderBy: "scoreInt", orderDirection: "desc") {
+                            items {
                                 id
                                 name
                                 owner
@@ -73,73 +73,66 @@
                                 level
                                 timeUntilStarving
                                 rewards
-                                itemsOwned {
-                                    id
-                                    owned
-                                    itemEquipExpires
-                                }
                             }
                         }
-                    `,
-                    variables: {
-                        owner: `${ownerAddress}`
                     }
-                };
-                fetch(apiUrl, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(payload)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Response data for address:', ownerAddress, data);
-                    const pets = data.data.pets;
-                    const currentUnixTimestamp = Math.floor(Date.now() / 1000);
-                    let petInfoHTML = `<h3>Address: ${ownerAddress}</h3>`;
-                    let totalRewards = 0;
+                `,
+                variables: {
+                    owner: ownerAddress
+                }
+            };
 
-                    pets.forEach(pet => {
-                        const ttd = parseInt(pet.timeUntilStarving);
-                        const score = parseFloat(pet.score)/1000000000000;
-                        const rewards = parseFloat(pet.rewards)/1000000000000000000;
-                        const petName = pet.name;
-                        const petId = pet.id;
-                        const timeDifferenceSeconds = ttd - currentUnixTimestamp;
-                        totalRewards += rewards;
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Response data for address:', ownerAddress, data);
+                const pets = data.data.pets.items;
+                const currentUnixTimestamp = Math.floor(Date.now() / 1000);
+                let petInfoHTML = `<h3>Address: ${ownerAddress}</h3>`;
+                let totalRewards = 0;
 
-                        if (timeDifferenceSeconds > 0) {
-                            const hours = Math.floor(timeDifferenceSeconds / 3600);
-                            const minutes = Math.floor((timeDifferenceSeconds % 3600) / 60);
-                            if (timeDifferenceSeconds < 86400) {
-                                petInfoHTML += `<p style="color: red">${petName || `Pet ID #${petId}`} time until starving: ${hours} hours and ${minutes} minutes</p>`;
-                            } else {
-                                petInfoHTML += `<p style="color: green">${petName || `Pet ID #${petId}`} time until starving: ${hours} hours and ${minutes} minutes</p>`;
-                            }
-                            petInfoHTML += `<p style="font-size: smaller;">Score: ${score.toFixed(0)} points</p>`;
-                            petInfoHTML += `<p style="font-size: smaller;">Rewards: ${rewards.toFixed(8)} ETH</p>`;
-                        } else {
-                            petInfoHTML += `<p>${petName || `Pet ID #${petId}`} is already starving.</p>`;
-                        }
-                    });
+                pets.forEach(pet => {
+                    const ttd = parseInt(pet.timeUntilStarving);
+                    const score = parseFloat(pet.score) / 1000000000000;
+                    const rewards = parseFloat(pet.rewards) / 1000000000000000000;
+                    const petName = pet.name || `Pet ID #${pet.id}`;
+                    const timeDifferenceSeconds = ttd - currentUnixTimestamp;
+                    totalRewards += rewards;
 
-                    const div = document.createElement('div');
-                    div.innerHTML = petInfoHTML;
-                    document.getElementById('pet-info').appendChild(div);
+                    if (timeDifferenceSeconds > 0) {
+                        const hours = Math.floor(timeDifferenceSeconds / 3600);
+                        const minutes = Math.floor((timeDifferenceSeconds % 3600) / 60);
+                        const color = timeDifferenceSeconds < 86400 ? 'red' : 'green';
+                        petInfoHTML += `<p style="color: ${color}">${petName} time until starving: ${hours} hours and ${minutes} minutes</p>`;
+                        petInfoHTML += `<p style="font-size: smaller;">Score: ${score.toFixed(0)} points</p>`;
+                        petInfoHTML += `<p style="font-size: smaller;">Rewards: ${rewards.toFixed(8)} ETH</p>`;
+                    } else {
+                        petInfoHTML += `<p>${petName} is already starving.</p>`;
+                    }
+                });
 
-                    const totalRewardsDiv = document.createElement('div');
-                    totalRewardsDiv.innerHTML = `<h4>Total Rewards: ${totalRewards.toFixed(8)} ETH</h4>`;
-                    document.getElementById('pet-info').appendChild(totalRewardsDiv);
-                })
+                const div = document.createElement('div');
+                div.innerHTML = petInfoHTML;
+                document.getElementById('pet-info').appendChild(div);
+
+                const totalRewardsDiv = document.createElement('div');
+                totalRewardsDiv.innerHTML = `<h4>Total Rewards: ${totalRewards.toFixed(8)} ETH</h4>`;
+                document.getElementById('pet-info').appendChild(totalRewardsDiv);
+            })
             .catch(error => {
                 console.error('Error fetching pet data for address ' + ownerAddress + ':', error);
             });
-            });
+        });
 
-            if (saveAddresses && ownerAddresses.length > 0) {
-                ownerAddresses = ownerAddresses.filter(isValidAddress);
-                localStorage.setItem('savedAddresses', ownerAddresses.join(','));
-            }
+        if (saveAddresses && ownerAddresses.length > 0) {
+            ownerAddresses = ownerAddresses.filter(isValidAddress);
+            localStorage.setItem('savedAddresses', ownerAddresses.join(','));
         }
+    }
     </script>
 </body>
 </html>
