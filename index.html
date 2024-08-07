@@ -7,12 +7,39 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
-            padding: 0;
+            margin: 21px;
+            padding: 0.69;
             background-color: #f0f0f0;
         }
         #pet-info {
-            margin-top: 20px;
+            margin-top: 12px;
+        }
+        .owner-info {
+            border: 1.59px ridge rgba(0, 0, 0, 0.876);
+            border-radius: 3px;
+            padding: 0px;
+            padding-left: 6.9px;
+            margin-bottom: 3px;
+            max-width: 600px;
+        }
+        .pet-info {
+            border: 1.23px inset rgba(0, 0, 0, 0.420);
+            border-radius: 3px;
+            padding-top: 6.9px;
+            padding-right: 6.9px;
+            padding-left: 6.9px;
+            padding-bottom: 0px;
+            margin-bottom: 0.69px;
+            max-width: 600px;
+        }
+        .pet-info h4 {
+            margin: 4.20px;
+            margin-bottom: 6.9px;
+        }
+
+        .pet-info p {
+            margin: 4.20px;
+            font-size: smaller;
         }
     </style>
 </head>
@@ -39,7 +66,7 @@
         return address.startsWith('0x') && address.length === 42;
     }
 
-    function fetchPetInfo(saveAddresses) {
+    async function fetchPetInfo(saveAddresses) {
         console.log("Fetching pet info...");
         let input = document.getElementById('address-input').value;
         console.log("Input addresses:", input);
@@ -52,86 +79,166 @@
 
         document.getElementById('pet-info').innerHTML = '';
 
-        ownerAddresses.forEach(ownerAddress => {
+        for (const ownerAddress of ownerAddresses) {
             if (!isValidAddress(ownerAddress)) {
                 alert(`Invalid address: ${ownerAddress}`);
-                return;
+                continue;
             }
 
-            const payload = {
-                query: `
-                    query GetPetsByOwner($owner: String!) {
-                        pets(where: { owner: $owner }, orderBy: "scoreInt", orderDirection: "desc") {
-                            items {
-                                id
-                                name
-                                owner
-                                score
-                                status
-                                lastAttackUsed
-                                lastAttacked
-                                level
-                                timeUntilStarving
-                                rewards
-                            }
-                        }
-                    }
-                `,
-                variables: {
-                    owner: ownerAddress
-                }
-            };
-
-            fetch(apiUrl, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(payload)
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Response data for address:', ownerAddress, data);
-                const pets = data.data.pets.items;
-                const currentUnixTimestamp = Math.floor(Date.now() / 1000);
-                let petInfoHTML = `<h3>Address: ${ownerAddress}</h3>`;
-                let totalRewards = 0;
-
-                pets.forEach(pet => {
-                    const ttd = parseInt(pet.timeUntilStarving);
-                    const score = parseFloat(pet.score) / 1000000000000;
-                    const rewards = parseFloat(pet.rewards) / 1000000000000000000;
-                    const petName = pet.name || `Pet ID #${pet.id}`;
-                    const timeDifferenceSeconds = ttd - currentUnixTimestamp;
-                    totalRewards += rewards;
-
-                    if (timeDifferenceSeconds > 0) {
-                        const hours = Math.floor(timeDifferenceSeconds / 3600);
-                        const minutes = Math.floor((timeDifferenceSeconds % 3600) / 60);
-                        const color = timeDifferenceSeconds < 86400 ? 'red' : 'green';
-                        petInfoHTML += `<p style="color: ${color}">${petName} time until starving: ${hours} hours and ${minutes} minutes</p>`;
-                        petInfoHTML += `<p style="font-size: smaller;">Score: ${score.toFixed(0)} points</p>`;
-                        petInfoHTML += `<p style="font-size: smaller;">Rewards: ${rewards.toFixed(8)} ETH</p>`;
-                    } else {
-                        petInfoHTML += `<p>${petName} is already starving.</p>`;
-                    }
-                });
-
-                const div = document.createElement('div');
-                div.innerHTML = petInfoHTML;
-                document.getElementById('pet-info').appendChild(div);
-
-                const totalRewardsDiv = document.createElement('div');
-                totalRewardsDiv.innerHTML = `<h4>Total Rewards: ${totalRewards.toFixed(8)} ETH</h4>`;
-                document.getElementById('pet-info').appendChild(totalRewardsDiv);
-            })
-            .catch(error => {
-                console.error('Error fetching pet data for address ' + ownerAddress + ':', error);
-            });
-        });
+            const petInfoHTML = await fetchAllPetInfo(ownerAddress, apiUrl, headers);
+            const div = document.createElement('div');
+            div.innerHTML = petInfoHTML;
+            document.getElementById('pet-info').appendChild(div);
+        }
 
         if (saveAddresses && ownerAddresses.length > 0) {
             ownerAddresses = ownerAddresses.filter(isValidAddress);
             localStorage.setItem('savedAddresses', ownerAddresses.join(','));
         }
+    }
+
+    async function fetchAllPetInfo(ownerAddress, apiUrl, headers) {
+        const payload = {
+            query: `
+                query GetPetsByOwner($owner: String!) {
+                    pets(where: { owner: $owner }, orderBy: "scoreInt", orderDirection: "desc") {
+                        items {
+                            id
+                            name
+                            owner
+                            score
+                            status
+                            lastAttackUsed
+                            lastAttacked
+                            level
+                            timeUntilStarving
+                            rewards
+                            createdAt
+                            defensePoints
+                            attackPoints
+                            shieldExpires
+                            lossQty
+                            winQty
+                            monstersCaught
+                            wheelSpins {
+                                items {
+                                    createdAt
+                                }
+                                pageInfo {
+                                    hasNextPage
+                                    endCursor
+                                }
+                            }
+                        }
+                    }
+                }
+            `,
+            variables: {
+                owner: ownerAddress
+            }
+        };
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        const pets = data.data.pets.items;
+        const currentUnixTimestamp = Math.floor(Date.now() / 1000);
+        let petInfoHTML = `<div class="owner-info"><h4 style="text-decoration: underline; margin: 2.22px; margin-top: 4.20px; padding: 1.23px; padding-top: 4.20px">Address: ${ownerAddress}</h4>`;
+        petInfoHTML += `<p id="total-score" style="font-size: smaller;margin: 0; padding: 3px;">Total Score: 0 points</p>`;
+        petInfoHTML += `<p id="total-rewards" style="font-size: smaller;margin: 0; padding: 3px;">Total Rewards: 0.00000000 ETH</p>`;
+        petInfoHTML += `</div>`;
+        let totalRewards = 0;
+        let totalScore = 0;
+
+        for (const pet of pets) {
+            const ttd = parseInt(pet.timeUntilStarving);
+            const score = parseFloat(pet.score) / 1000000000000;
+            const rewards = parseFloat(pet.rewards) / 1000000000000000000;
+            const petName = pet.name || `Pet ID #${pet.id}`;
+            const timeDifferenceSeconds = ttd - currentUnixTimestamp;
+            const color = timeDifferenceSeconds < 86400 ? 'red' : 'green';
+            totalRewards += rewards;
+            totalScore += score;
+
+            let petHTML = `<div class="pet-info"><h4 style="text-decoration: underline">${petName}</h4>`;
+
+            if (timeDifferenceSeconds > 0) {
+                const hours = Math.floor(timeDifferenceSeconds / 3600);
+                const minutes = Math.floor((timeDifferenceSeconds % 3600) / 60);
+                petHTML += `<p style="color: ${color}">Time Until Starving: ${hours} hours and ${minutes} minutes</p>`;
+            } else {
+                petHTML += `<p style="color: ${color}">Time Until Starving: Already Starved!</p>`;
+            }
+
+            petHTML += `<p>Score: ${Math.round(score).toLocaleString()} points</p>`;
+            petHTML += `<p>Rewards: ${rewards.toFixed(8)} ETH</p>`;
+
+            let allWheelSpins = pet.wheelSpins.items;
+            let pageInfo = pet.wheelSpins.pageInfo;
+
+            while (pageInfo.hasNextPage) {
+                const nextPayload = {
+                    query: `
+                        query GetWheelSpins($owner: String!, $petId: Int!, $cursor: String!) {
+                            pets(where: { owner: $owner, id: $petId }) {
+                                items {
+                                    wheelSpins(after: $cursor) {
+                                        items {
+                                            createdAt
+                                        }
+                                        pageInfo {
+                                            hasNextPage
+                                            endCursor
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    `,
+                    variables: {
+                        owner: ownerAddress,
+                        petId: pet.id,
+                        cursor: pageInfo.endCursor
+                    }
+                };
+
+                const nextResponse = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(nextPayload)
+                });
+                const nextData = await nextResponse.json();
+                const nextPet = nextData.data.pets.items[0];
+                allWheelSpins = allWheelSpins.concat(nextPet.wheelSpins.items);
+                pageInfo = nextPet.wheelSpins.pageInfo;
+            }
+
+            if (allWheelSpins.length > 0) {
+                const mostRecentCreatedAt = Math.max(...allWheelSpins.map(ws => ws.createdAt));
+                const timeSinceLastSpin = currentUnixTimestamp - mostRecentCreatedAt;
+                const timeUntilNextSpin = 86400 - timeSinceLastSpin;
+                if (timeUntilNextSpin > 0) {
+                    const hours = Math.floor(timeUntilNextSpin / 3600);
+                    const minutes = Math.floor((timeUntilNextSpin % 3600) / 60);
+                    petHTML += `<p>Next Wheel Spin: ${hours} hours and ${minutes} minutes</p>`;
+                } else {
+                    petHTML += `<p>Next Wheel Spin: Spin Now!</p>`;
+                }
+            } else {
+                petHTML += `<p>Next Wheel Spin: Spin Now!</p>`;
+            }
+
+            petHTML += `</div>`;
+            petInfoHTML += petHTML;
+        }
+
+        petInfoHTML = petInfoHTML.replace('Total Score: 0 points', `Total Score: ${Math.round(totalScore).toLocaleString()} points`);
+        petInfoHTML = petInfoHTML.replace('Total Rewards: 0.00000000 ETH', `Total Rewards: ${totalRewards.toFixed(8)} ETH`);
+
+        return petInfoHTML;
     }
     </script>
 </body>
