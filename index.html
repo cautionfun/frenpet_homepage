@@ -8,7 +8,7 @@
         body {
             font-family: Arial, sans-serif;
             margin: 21px;
-            padding: 0.69;
+            padding: 0.69px;
             background-color: #f0f0f0;
         }
         #pet-info {
@@ -17,7 +17,7 @@
         .owner-info {
             border: 1.59px ridge rgba(0, 0, 0, 0.876);
             border-radius: 3px;
-            padding: 0px;
+            padding: 0;
             padding-left: 6.9px;
             margin-bottom: 3px;
             max-width: 600px;
@@ -25,21 +25,24 @@
         .pet-info {
             border: 1.23px inset rgba(0, 0, 0, 0.420);
             border-radius: 3px;
-            padding-top: 6.9px;
-            padding-right: 6.9px;
-            padding-left: 6.9px;
-            padding-bottom: 0px;
+            padding: 6.9px;
+            padding-bottom: 0;
             margin-bottom: 0.69px;
             max-width: 600px;
         }
         .pet-info h4 {
-            margin: 4.20px;
+            margin: 4.2px;
             margin-bottom: 6.9px;
         }
-
         .pet-info p {
-            margin: 4.20px;
+            margin: 4.2px;
             font-size: smaller;
+        }
+        .owner-info h3 {
+            max-width: 90%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
     </style>
 </head>
